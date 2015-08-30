@@ -4,20 +4,13 @@
 ;;; remote server, and then start the service using UrlClassLoader with
 ;;; this library.
 (ns crow.starter
-  (:require [slingshot.slingshot :refer [throw+]]
-            [crow.registrar :refer [start-registrar-service]]
+  (:require [crow.registrar :refer [start-registrar-service]]
             [crow.service :refer [start-service]]
             [crow.protocol :refer [install-default-marshaller]]
             [clojure.string :refer [split]]
-            [clojure.java.io :refer [file]]
             [crow.configuration :as config]
-            [clojure.edn :as edn]
             [clojure.tools.logging :as log]
-            [crow.logging :refer [trace-pr]])
-  (:import [java.net URL URLClassLoader]
-           [clojure.lang Var])
-  (:gen-class))
-
+            [crow.logging :refer [trace-pr]]))
 
 (defmulti start
   "start a service by the :type of service (:registrar or :service)."
@@ -60,48 +53,19 @@
     (println "load initializer.")
     (require initializer)))
 
-(defn- resolve-classpath
-  [classpath]
-  (println (str "classpath: " (pr-str classpath)))
-  (cond
-    (symbol? classpath)
-    (into-array URL [(URL. (str classpath))])
-
-    (string? classpath)
-    (into-array URL [(URL. classpath)])
-
-    :else
-    (into-array URL classpath)))
-
 (defn- do-start
   [conf]
   (let [marshaller (or load-marshaller
-                       (throw+ {
-                        :type :marshaller-not-found
-                        :message "Couldn't get an instance of object-marshaller. Mayby no :object-marshaller in config file."}))]
+                       (throw (IllegalStateException.
+                                "Couldn't get an instance of object-marshaller. Mayby no :object-marshaller in config file.")))]
     (install-default-marshaller marshaller)
     (load-initializer conf)
     (initialize conf)
     (println (str "SERVICE STARTS: " (:name conf)))
     (start conf)))
 
-(defn- launch
+(defn launch
   [config-path]
   (let [conf (config/from-path config-path)]
     (do-start conf)))
-
-(defn -main
-  [classpath-edn config-path & others]
-  (when-not (seq config-path)
-    (throw (IllegalArgumentException. "Config-path must be supplied.")))
-  (when-not (.exists (file config-path))
-    (throw (IllegalArgumentException. (str "the file '" config-path "' doesn't exist."))))
-  (if-let [classpath (resolve-classpath (edn/read-string classpath-edn))]
-    (let [loader (URLClassLoader. classpath)]
-      (Var/pushThreadBindings {clojure.lang.Compiler/LOADER loader})
-      (try
-        (launch config-path)
-        (finally
-          (Var/popThreadBindings))))
-    (launch config-path)))
 
