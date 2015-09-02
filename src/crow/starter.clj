@@ -55,7 +55,7 @@
 
 (defn- do-start
   [conf]
-  (let [marshaller (or load-marshaller
+  (let [marshaller (or (load-marshaller conf)
                        (throw (IllegalStateException.
                                 "Couldn't get an instance of object-marshaller. Mayby no :object-marshaller in config file.")))]
     (install-default-marshaller marshaller)
