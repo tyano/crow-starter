@@ -35,6 +35,7 @@
   (if-let [classpath (resolve-classpath (edn/read-string classpath-edn))]
     (let [loader (URLClassLoader. classpath)]
       (Var/pushThreadBindings {clojure.lang.Compiler/LOADER loader})
+      (.setContextClassLoader (Thread/currentThread) loader)
       (try
         (launch config-path)
         (finally
