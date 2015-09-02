@@ -17,7 +17,7 @@
     (into-array URL [(URL. classpath)])
 
     :else
-    (into-array URL classpath)))
+    (into-array URL (map #(URL. (str %)) classpath))))
 
 (defn- launch
   [config-path]
