@@ -4,68 +4,49 @@
 ;;; remote server, and then start the service using UrlClassLoader with
 ;;; this library.
 (ns crow.starter
-  (:require [crow.registrar :refer [start-registrar-service]]
-            [crow.service :refer [start-service]]
-            [crow.protocol :refer [install-default-marshaller]]
+  (:require [crow.protocol :refer [install-default-marshaller]]
             [clojure.string :refer [split]]
             [crow.configuration :as config]
             [clojure.tools.logging :as log]
             [crow.logging :refer [trace-pr]]))
 
-(defmulti start
-  "start a service by the :type of service (:registrar or :service)."
-  (fn [config] (:type config)))
-
-(defmethod start :registrar
-  [config]
-  (start-registrar-service config))
-
-(defmethod start :service
-  [config]
-  (start-service config))
-
-(defmulti initialize
-  "initialize a service before starting the service."
-  (fn [config] (:name config)))
-
-(defmethod initialize :default
-  [config]
-  ;;do nothing
-  )
-
-
 (defn- instanciate
-  [class-name]
-  {:pre [(seq class-name)]}
-  (let [loader (.getContextClassLoader (Thread/currentThread))
-        clazz  (Class/forName class-name true loader)]
-    (when clazz
-      (.newInstance clazz))))
+  [fn-name]
+  {:pre [fn-name]}
+  (let [fn-symbol (if (symbol? fn-name) fn-name (symbol fn-name))
+        fn-ns     (namespace fn-symbol)]
+    (require (symbol fn-ns))
+    (if-let [marshaller-constructor (find-var fn-name)]
+      (marshaller-constructor)
+      (throw (IllegalStateException. (str "No such fn: " fn-name))))))
 
 (defn- load-marshaller
   [conf]
   (when-let [marshaller-def (:object-marshaller conf)]
-    (if (string? marshaller-def) (instanciate marshaller-def) marshaller-def)))
+    (if (or (string? marshaller-def) (symbol? marshaller-def))
+      (instanciate marshaller-def)
+      marshaller-def)))
 
-(defn- load-initializer
+(defn- load-starter-fn
   [conf]
-  (when-let [initializer (:initializer conf)]
-    (println "load initializer.")
-    (require initializer)))
-
-(defn- do-start
-  [conf]
-  (let [marshaller (or (load-marshaller conf)
-                       (throw (IllegalStateException.
-                                "Couldn't get an instance of object-marshaller. Mayby no :object-marshaller in config file.")))]
-    (install-default-marshaller marshaller)
-    (load-initializer conf)
-    (initialize conf)
-    (println (str "SERVICE STARTS: " (:name conf)))
-    (start conf)))
+  (if-let [starter-fn-name (:starter conf)]
+    (let [fn-symbol (if (symbol? starter-fn-name) starter-fn-name (symbol starter-fn-name))
+          fn-ns     (namespace fn-symbol)]
+      (require (symbol fn-ns))
+      (println "load starter-fn:" starter-fn-name)
+      (if-let [starter-fn (find-var starter-fn-name)]
+        starter-fn
+        (throw (IllegalStateException. (str "No such function: " starter-fn-name)))))
+    (throw (IllegalStateException. ":starter key is not found in your configuration file."))))
 
 (defn launch
   [config-path]
-  (let [conf (config/from-path config-path)]
-    (do-start conf)))
+  (let [conf       (config/from-path config-path)
+        marshaller (or (load-marshaller conf)
+                       (throw (IllegalStateException.
+                                "Couldn't get an instance of object-marshaller. Mayby no :object-marshaller in config file.")))]
+    (install-default-marshaller marshaller)
+    (let [starter-fn (load-starter-fn conf)]
+      (println (str "SERVICE STARTS: " (:name conf)))
+      (starter-fn conf))))
 
