@@ -5,27 +5,7 @@
 ;;; this library.
 (ns crow.starter
   (:require [crow.protocol :refer [install-default-marshaller]]
-            [clojure.string :refer [split]]
-            [crow.configuration :as config]
-            [clojure.tools.logging :as log]
-            [crow.logging :refer [trace-pr]]))
-
-(defn- instanciate
-  [fn-name]
-  {:pre [fn-name]}
-  (let [fn-symbol (if (symbol? fn-name) fn-name (symbol fn-name))
-        fn-ns     (namespace fn-symbol)]
-    (require (symbol fn-ns))
-    (if-let [marshaller-constructor (find-var fn-name)]
-      (marshaller-constructor)
-      (throw (IllegalStateException. (str "No such fn: " fn-name))))))
-
-(defn- load-marshaller
-  [conf]
-  (when-let [marshaller-def (:object-marshaller conf)]
-    (if (or (string? marshaller-def) (symbol? marshaller-def))
-      (instanciate marshaller-def)
-      marshaller-def)))
+            [crow.configuration :as config]))
 
 (defn- load-starter-fn
   [conf]
@@ -34,7 +14,7 @@
           fn-ns     (namespace fn-symbol)]
       (require (symbol fn-ns))
       (println "load starter-fn:" starter-fn-name)
-      (if-let [starter-fn (find-var starter-fn-name)]
+      (if-let [starter-fn (find-var fn-symbol)]
         starter-fn
         (throw (IllegalStateException. (str "No such function: " starter-fn-name)))))
     (throw (IllegalStateException. ":starter key is not found in your configuration file."))))
@@ -42,7 +22,7 @@
 (defn launch
   [config-path]
   (let [conf       (config/from-path config-path)
-        marshaller (or (load-marshaller conf)
+        marshaller (or (:object-marshaller conf)
                        (throw (IllegalStateException.
                                 "Couldn't get an instance of object-marshaller. Mayby no :object-marshaller in config file.")))]
     (install-default-marshaller marshaller)
