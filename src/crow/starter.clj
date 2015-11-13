@@ -21,7 +21,9 @@
 
 (defn launch
   [config-path]
-  (let [conf       (config/from-path config-path)
+  (let [conf       (if (.endsWith config-path ".clj")
+                      (config/from-path config-path)
+                      (config/from-edn config-path))
         marshaller (or (:object-marshaller conf)
                        (throw (IllegalStateException.
                                 "Couldn't get an instance of object-marshaller. Mayby no :object-marshaller in config file.")))]
