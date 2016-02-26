@@ -3,7 +3,7 @@
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
-  :dependencies [[org.clojure/clojure "1.7.0"]]
+  :dependencies [[org.clojure/clojure "1.8.0"]]
   :profiles {:provided {:dependencies [[crow "1.0-SNAPSHOT" :scope "provided"]]}}
   :repositories {"javelindev-snapshots" "http://javelindev.jp/repository/snapshots"}
   :aot [crow.starter.core]
