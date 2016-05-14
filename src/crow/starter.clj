@@ -30,5 +30,8 @@
     (install-default-marshaller marshaller)
     (let [starter-fn (load-starter-fn conf)]
       (println (str "SERVICE STARTS: " (:name conf)))
-      (starter-fn conf))))
+      (let [server (starter-fn conf)]
+        (.. (Runtime/getRuntime) (addShutdownHook (Thread. (fn [] (.close server) (println "SERVER STOPPED.")))))
+        (while true
+          (Thread/sleep 1000))))))
 
