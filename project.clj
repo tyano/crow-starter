@@ -8,7 +8,3 @@
   :dependencies [[org.clojure/clojure "1.9.0"]]
   :aot [crow.starter.core]
   :main crow.starter.core)
-
-(cemerick.pomegranate.aether/register-wagon-factory!
-   "scp" #(let [c (resolve 'org.apache.maven.wagon.providers.ssh.external.ScpExternalWagon)]
-                      (clojure.lang.Reflector/invokeConstructor c (into-array []))))
